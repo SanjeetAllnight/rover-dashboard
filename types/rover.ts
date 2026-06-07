@@ -13,7 +13,16 @@ export type RoverState =
 
 // ─── Rover command ───────────────────────────────────────────────────────────
 
-export type RoverCommand = 'start' | 'stop' | 'unload' | 'forward' | 'reverse' | 'left' | 'right' | 'closeTrap' | 'emergencyStop';
+export type RoverCommand = 
+  | 'FORWARD' 
+  | 'BACKWARD' 
+  | 'LEFT' 
+  | 'RIGHT' 
+  | 'STOP' 
+  | 'START_MISSION' 
+  | 'STOP_MISSION' 
+  | 'OPEN_TRAP' 
+  | 'CLOSE_TRAP';
 
 // ─── Event log entry ─────────────────────────────────────────────────────────
 
@@ -48,6 +57,8 @@ export interface RoverStatus {
   currentTripNumber: number;
   /** Total number of completed trips */
   tripsCompleted: number;
+  /** Progress of current mission 0-100 */
+  missionProgress: number;
   /** Human-readable status of the active trip (legacy field from ESP32) */
   currentTripStatus: string;
   /** Duration of the last completed trip in seconds */

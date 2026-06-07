@@ -7,30 +7,7 @@ import type { RoverState } from '../types/rover';
 
 interface MissionProgressCardProps {
   state: RoverState;
-}
-
-/**
- * Maps each rover state to a 0-100 progress value along the
- * Home → Destination → Return route.
- *
- *  0          = at Home Base (IDLE / STOPPED / ERROR)
- *  1  – 49   = travelling to destination (DELIVERING)
- *  50         = at Destination (UNLOADING)
- *  51 – 99   = returning (RETURNING)
- *  100        = back Home (trip complete)
- */
-function stateToProgress(state: RoverState): number {
-  switch (state) {
-    case 'IDLE':     return 0;
-    case 'DELIVERING':
-    case 'RUNNING':  return 40;
-    case 'UNLOADING':return 50;
-    case 'RETURNING':
-    case 'PAUSED':   return 80;
-    case 'STOPPED':  return 0;
-    case 'ERROR':    return 0;
-    default:         return 0;
-  }
+  progress: number;
 }
 
 interface WaypointProps {
@@ -60,8 +37,7 @@ function Waypoint({ label, sublabel, icon, active, completed, accentColor }: Way
   );
 }
 
-export function MissionProgressCard({ state }: MissionProgressCardProps) {
-  const progress = stateToProgress(state);
+export function MissionProgressCard({ state, progress }: MissionProgressCardProps) {
   const isActive = state !== 'IDLE' && state !== 'STOPPED' && state !== 'ERROR';
 
   // Segment fill ratios (0-1):

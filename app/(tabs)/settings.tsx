@@ -2,46 +2,55 @@ import React, { useState } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import {
   Text,
-  TextInput,
   Button,
   Surface,
   Divider,
   SegmentedButtons,
   ActivityIndicator,
+  List,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSettingsStore, ConnectionMethod } from '../../store/settingsStore';
 import { useConnectionStore } from '../../store/connectionStore';
+import { useBLE } from '../../hooks/useBLE';
 import { AppTheme, Spacing, Radius } from '../../constants/theme';
+import type { Device } from 'react-native-ble-plx';
 
 const METHOD_OPTIONS = [
   { value: 'mock', label: 'Mock Rover' },
-  { value: 'wifi', label: 'WiFi Rover' },
+  { value: 'ble', label: 'BLE Rover' },
 ];
 
 export default function SettingsScreen() {
-  const { savedRoverIp, selectedMethod, setSelectedMethod, setSavedRoverIp } = useSettingsStore();
-  const { status, error, connect, disconnect } = useConnectionStore();
+  const { selectedMethod, setSelectedMethod } = useSettingsStore();
+  const { status: mockStatus, connectMock, disconnect: disconnectMock } = useConnectionStore();
+  const {
+    isScanning,
+    discoveredDevices,
+    scanError,
+    connectionStatus,
+    connectionError,
+    startScan,
+    stopScan,
+    connectToDevice,
+    disconnect: disconnectBle
+  } = useBLE();
 
-  const [ipInput, setIpInput] = useState(
-    savedRoverIp.replace(/^https?:\/\//, ''),
-  );
+  // Unified status for UI
+  const status = selectedMethod === 'mock' ? mockStatus : connectionStatus;
+  const error = selectedMethod === 'mock' ? null : connectionError;
 
   const handleMethodChange = async (val: string) => {
     const method = val as ConnectionMethod;
-    disconnect(); // Always disconnect when switching methods
+    if (selectedMethod === 'mock') await disconnectMock();
+    else await disconnectBle();
+    
+    if (isScanning) stopScan();
+    
     await setSelectedMethod(method);
     if (method === 'mock') {
-      connect(); // Auto-connect mock
-    }
-  };
-
-  const handleConnectWifi = async () => {
-    const trimmed = ipInput.trim();
-    if (trimmed) {
-      await setSavedRoverIp(trimmed);
-      connect();
+      connectMock();
     }
   };
 
@@ -50,7 +59,7 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <MaterialCommunityIcons
-          name="network-outline"
+          name="bluetooth"
           size={28}
           color={AppTheme.colors.primary}
         />
@@ -59,7 +68,7 @@ export default function SettingsScreen() {
             Connection Setup
           </Text>
           <Text style={styles.headerSub} variant="bodySmall">
-            Configure rover communication
+            Configure BLE communication
           </Text>
         </View>
       </View>
@@ -114,68 +123,66 @@ export default function SettingsScreen() {
           />
         </Surface>
 
-        {/* WiFi Config (Only show if WiFi selected) */}
-        {selectedMethod === 'wifi' && (
+        {/* BLE Config (Only show if BLE selected) */}
+        {selectedMethod === 'ble' && (
           <Surface style={styles.section} elevation={2}>
             <Text style={styles.sectionLabel} variant="labelSmall">
-              WIFI ROVER SETTINGS
+              BLUETOOTH ROVER SETTINGS
             </Text>
             <Divider style={styles.divider} />
 
-            <Text style={styles.fieldLabel} variant="bodyMedium">
-              Rover IP Address
-            </Text>
-            <Text style={styles.fieldHint} variant="bodySmall">
-              Enter the local IP or hostname of your ESP32 rover
-            </Text>
-            <TextInput
-              style={styles.input}
-              value={ipInput}
-              onChangeText={setIpInput}
-              placeholder="192.168.1.100"
-              placeholderTextColor={AppTheme.colors.onSurfaceVariant}
-              keyboardType="url"
-              autoCapitalize="none"
-              autoCorrect={false}
-              mode="outlined"
-              outlineColor={AppTheme.colors.outline}
-              activeOutlineColor={AppTheme.colors.primary}
-              textColor={AppTheme.colors.onSurface}
-              left={
-                <TextInput.Icon
-                  icon={() => (
-                    <MaterialCommunityIcons
-                      name="ip-network-outline"
-                      size={20}
-                      color={AppTheme.colors.onSurfaceVariant}
-                    />
-                  )}
-                />
-              }
-            />
-
-            <View style={styles.btnRow}>
-              {status !== 'connected' && status !== 'connecting' ? (
+            {status === 'connected' || status === 'connecting' ? (
+              <Button
+                mode="outlined"
+                style={styles.disconnectBtn}
+                textColor={AppTheme.colors.error}
+                onPress={disconnectBle}
+              >
+                Disconnect
+              </Button>
+            ) : (
+              <>
                 <Button
                   mode="contained"
                   style={styles.connectBtn}
                   buttonColor={AppTheme.colors.primary}
                   textColor="#000"
-                  onPress={handleConnectWifi}
+                  icon={isScanning ? 'bluetooth-transfer' : 'bluetooth-connect'}
+                  loading={isScanning}
+                  onPress={startScan}
                 >
-                  Connect
+                  {isScanning ? 'Scanning...' : 'Scan for Rover'}
                 </Button>
-              ) : (
-                <Button
-                  mode="outlined"
-                  style={styles.disconnectBtn}
-                  textColor={AppTheme.colors.error}
-                  onPress={disconnect}
-                >
-                  Disconnect
-                </Button>
-              )}
-            </View>
+
+                {scanError && (
+                  <Text style={styles.errorText} variant="bodySmall">
+                    {scanError}
+                  </Text>
+                )}
+
+                {discoveredDevices.length > 0 && (
+                  <View style={styles.deviceList}>
+                    <Text style={styles.fieldLabel} variant="labelLarge">Discovered Devices</Text>
+                    {discoveredDevices.map((dev) => (
+                      <List.Item
+                        key={dev.id}
+                        title={dev.name || 'Unknown Device'}
+                        description={`ID: ${dev.id}`}
+                        titleStyle={{ color: AppTheme.colors.onSurface }}
+                        descriptionStyle={{ color: AppTheme.colors.onSurfaceVariant }}
+                        left={props => <List.Icon {...props} icon="bluetooth" color={AppTheme.colors.primary} />}
+                        right={() => (
+                          <Button mode="text" onPress={() => connectToDevice(dev.id)}>
+                            Connect
+                          </Button>
+                        )}
+                        style={styles.deviceItem}
+                      />
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
           </Surface>
         )}
 
@@ -197,7 +204,7 @@ export default function SettingsScreen() {
                 mode="outlined"
                 style={[styles.disconnectBtn, { marginTop: Spacing.md }]}
                 textColor={AppTheme.colors.error}
-                onPress={disconnect}
+                onPress={disconnectMock}
               >
                 Disconnect Simulation
               </Button>
@@ -208,7 +215,7 @@ export default function SettingsScreen() {
                 style={[styles.connectBtn, { marginTop: Spacing.md }]}
                 buttonColor={AppTheme.colors.primary}
                 textColor="#000"
-                onPress={connect}
+                onPress={connectMock}
               >
                 Start Simulation
               </Button>
@@ -286,26 +293,13 @@ const styles = StyleSheet.create({
   },
   fieldLabel: {
     color: AppTheme.colors.onSurface,
+    marginTop: Spacing.md,
     marginBottom: Spacing.xs / 2,
   },
-  fieldHint: {
-    color: AppTheme.colors.onSurfaceVariant,
-    marginBottom: Spacing.sm,
-  },
-  input: {
-    backgroundColor: AppTheme.colors.surfaceVariant,
-    marginBottom: Spacing.md,
-  },
-  btnRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
   connectBtn: {
-    flex: 1,
     borderRadius: Radius.sm,
   },
   disconnectBtn: {
-    flex: 1,
     borderRadius: Radius.sm,
     borderColor: AppTheme.colors.error,
   },
@@ -316,4 +310,12 @@ const styles = StyleSheet.create({
   mockSub: {
     color: AppTheme.colors.onSurfaceVariant,
   },
+  deviceList: {
+    marginTop: Spacing.md,
+  },
+  deviceItem: {
+    backgroundColor: AppTheme.colors.surfaceVariant,
+    borderRadius: Radius.sm,
+    marginBottom: Spacing.sm,
+  }
 });

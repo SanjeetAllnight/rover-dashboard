@@ -16,7 +16,7 @@ export interface UseRoverStatusReturn {
 }
 
 export function useRoverStatus(): UseRoverStatusReturn {
-  const { status: connStatus, telemetry, error, lastUpdated, _tick } = useConnectionStore();
+  const { status: connStatus, telemetry, error, lastUpdated } = useConnectionStore();
 
   let apiStatus: ApiStatus = 'idle';
   if (connStatus === 'error') apiStatus = 'error';
@@ -30,6 +30,6 @@ export function useRoverStatus(): UseRoverStatusReturn {
     error,
     lastAttempts: 1, // Simplified since retry logic is handled internally
     lastUpdated,
-    refetch: _tick,
+    refetch: async () => {}, // No-op in BLE mode
   };
 }

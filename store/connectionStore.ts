@@ -1,7 +1,8 @@
 import { create } from 'zustand';
-import { getRoverStatus } from '../services/roverApi';
 import { useSettingsStore } from './settingsStore';
-import type { RoverStatus } from '../types/rover';
+import { bleService } from '../services/bleService';
+import { mockRover } from '../services/mockRover';
+import type { RoverStatus, RoverCommand } from '../types/rover';
 
 export type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'error';
 
@@ -10,78 +11,116 @@ interface ConnectionState {
   error: string | null;
   telemetry: RoverStatus | null;
   lastUpdated: Date | null;
-  connect: () => Promise<void>;
-  disconnect: () => void;
-  _tick: () => Promise<void>;
+  connectMock: () => void;
+  connectBle: (deviceId: string) => Promise<void>;
+  disconnect: () => Promise<void>;
+  sendCommand: (cmd: RoverCommand) => Promise<void>;
+  _setTelemetry: (telemetry: RoverStatus) => void;
+  _setError: (error: string) => void;
 }
 
-// Store the interval ID locally so it's not in the reactive state
-let pollIntervalId: ReturnType<typeof setInterval> | null = null;
+let mockPollIntervalId: ReturnType<typeof setInterval> | null = null;
 
-export const useConnectionStore = create<ConnectionState>((set, get) => ({
-  status: 'disconnected',
-  error: null,
-  telemetry: null,
-  lastUpdated: null,
+export const useConnectionStore = create<ConnectionState>((set, get) => {
+  // Bind BLE service events to our store
+  bleService.onTelemetryReceived = (telemetry) => {
+    get()._setTelemetry(telemetry);
+  };
+  
+  bleService.onDeviceDisconnected = () => {
+    set({ status: 'disconnected', telemetry: null, error: 'Device disconnected unexpectedly' });
+  };
 
-  connect: async () => {
-    // If already connected/connecting, do nothing
-    if (get().status === 'connected' || get().status === 'connecting') return;
+  return {
+    status: 'disconnected',
+    error: null,
+    telemetry: null,
+    lastUpdated: null,
 
-    set({ status: 'connecting', error: null });
+    connectMock: () => {
+      if (get().status === 'connected' || get().status === 'connecting') return;
+      set({ status: 'connecting', error: null });
+      
+      // Simulate connection delay
+      setTimeout(() => {
+        if (mockPollIntervalId) clearInterval(mockPollIntervalId);
+        
+        // Initial tick
+        get()._setTelemetry(mockRover.getStatus());
+        set({ status: 'connected' });
 
-    // Initial ping
-    await get()._tick();
+        // Start polling mock rover
+        const ms = useSettingsStore.getState().pollIntervalMs || 1000;
+        mockPollIntervalId = setInterval(() => {
+          if (get().status === 'connected') {
+            get()._setTelemetry(mockRover.getStatus());
+          }
+        }, ms);
+      }, 500);
+    },
 
-    if (get().status === 'connected') {
-      // Start polling
-      if (pollIntervalId) clearInterval(pollIntervalId);
-      const ms = useSettingsStore.getState().pollIntervalMs;
-      pollIntervalId = setInterval(() => get()._tick(), ms);
+    connectBle: async (deviceId: string) => {
+      if (get().status === 'connected' || get().status === 'connecting') return;
+      set({ status: 'connecting', error: null });
+
+      try {
+        await bleService.connectToDevice(deviceId);
+        set({ status: 'connected', error: null });
+      } catch (e: any) {
+        get()._setError(e.message || 'Failed to connect to BLE device');
+      }
+    },
+
+    disconnect: async () => {
+      // Clear mock interval
+      if (mockPollIntervalId) {
+        clearInterval(mockPollIntervalId);
+        mockPollIntervalId = null;
+      }
+      
+      // Disconnect BLE
+      try {
+        await bleService.disconnect();
+      } catch (e) {
+        console.error('Disconnect error', e);
+      }
+
+      set({ status: 'disconnected', telemetry: null, error: null, lastUpdated: null });
+    },
+
+    sendCommand: async (cmd: RoverCommand) => {
+      const { status } = get();
+      if (status !== 'connected') return;
+
+      const method = useSettingsStore.getState().selectedMethod;
+      
+      if (method === 'mock') {
+        mockRover.handleCommand(cmd);
+        // Instant update for mock
+        get()._setTelemetry(mockRover.getStatus());
+      } else {
+        try {
+          await bleService.sendCommand(cmd);
+        } catch (e: any) {
+          console.error('Failed to send command', e);
+          // Optional: handle error state
+        }
+      }
+    },
+
+    _setTelemetry: (telemetry: RoverStatus) => {
+      set({ telemetry, lastUpdated: new Date() });
+    },
+
+    _setError: (error: string) => {
+      set({ status: 'error', error });
     }
-  },
+  };
+});
 
-  disconnect: () => {
-    if (pollIntervalId) {
-      clearInterval(pollIntervalId);
-      pollIntervalId = null;
-    }
-    set({ status: 'disconnected', telemetry: null, error: null, lastUpdated: null });
-  },
-
-  _tick: async () => {
-    const { status } = get();
-    // Don't fetch if we explicitly disconnected
-    if (status === 'disconnected') return;
-
-    const result = await getRoverStatus();
-    
-    if (get().status === 'disconnected') return; // if user disconnected during fetch
-
-    if (result.data) {
-      set({
-        status: 'connected',
-        telemetry: result.data,
-        error: null,
-        lastUpdated: new Date(),
-      });
-    } else {
-      set({
-        status: 'error',
-        error: result.error,
-      });
-      // Optionally stop polling on error, but for WiFi it's common to keep trying
-      // If we want to drop connection on error:
-      // get().disconnect();
-      // set({ status: 'error', error: result.error }); 
-      // But keeping it 'error' allows the UI to show an error state while still trying.
-    }
-  },
-}));
-
-// Subscribe to settings changes to auto-connect if Mock Rover is selected
+// Auto-connect Mock Rover if selected
 useSettingsStore.subscribe((state, prevState) => {
   if (state.selectedMethod === 'mock' && prevState.selectedMethod !== 'mock') {
-    useConnectionStore.getState().connect();
+    useConnectionStore.getState().connectMock();
   }
 });

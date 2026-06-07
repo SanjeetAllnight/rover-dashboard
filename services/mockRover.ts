@@ -8,6 +8,7 @@ class MockRover {
     cargoLoaded: false,
     currentTripNumber: 0,
     tripsCompleted: 0,
+    missionProgress: 0,
     currentTripStatus: 'Waiting',
     lastTripDuration: 0,
     slopeAngle: 0,
@@ -99,20 +100,29 @@ class MockRover {
     if (this.interval) {
       switch (this.status.state) {
         case 'IDLE':
-          // Wait a few seconds then start delivery if we have cargo
           if (this.tickCount % 4 === 0) {
             this.status.cargoLoaded = true;
+            this.status.missionProgress = 0;
             this.setState('DELIVERING');
           }
           break;
         case 'DELIVERING':
-          if (this.tickCount % 5 === 0) this.setState('UNLOADING');
+          this.status.missionProgress = Math.min(100, this.status.missionProgress + 20);
+          if (this.status.missionProgress >= 100) {
+            this.setState('UNLOADING');
+          }
           break;
         case 'UNLOADING':
-          if (this.tickCount % 3 === 0) this.setState('RETURNING');
+          if (this.tickCount % 3 === 0) {
+            this.status.missionProgress = 0;
+            this.setState('RETURNING');
+          }
           break;
         case 'RETURNING':
-          if (this.tickCount % 5 === 0) this.setState('IDLE');
+          this.status.missionProgress = Math.min(100, this.status.missionProgress + 25);
+          if (this.status.missionProgress >= 100) {
+            this.setState('IDLE');
+          }
           break;
       }
     }
@@ -124,25 +134,25 @@ class MockRover {
 
   public handleCommand(cmd: RoverCommand) {
     switch (cmd) {
-      case 'start':
-      case 'forward':
-      case 'reverse':
-      case 'left':
-      case 'right':
+      case 'START_MISSION':
+      case 'FORWARD':
+      case 'BACKWARD':
+      case 'LEFT':
+      case 'RIGHT':
         this.status.cargoLoaded = true;
         this.setState('DELIVERING');
         this.startCycle(); // ensure cycle is running
         break;
-      case 'stop':
-      case 'emergencyStop':
+      case 'STOP':
+      case 'STOP_MISSION':
         this.stopCycle();
         this.setState('STOPPED');
         break;
-      case 'unload':
+      case 'OPEN_TRAP':
         this.status.cargoLoaded = false;
         this.addEvent('CARGO_UNLOADED', 'Manual unload');
         break;
-      case 'closeTrap':
+      case 'CLOSE_TRAP':
         this.status.cargoLoaded = true;
         break;
     }

@@ -149,7 +149,7 @@ export default function DashboardScreen() {
             />
 
             {/* Mission Progress */}
-            <MissionProgressCard state={status.state} />
+            <MissionProgressCard state={status.state} progress={status.missionProgress || 0} />
 
             {/* Event Log */}
             <EventLogCard events={status.eventLog || []} />

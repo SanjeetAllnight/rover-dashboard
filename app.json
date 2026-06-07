@@ -27,7 +27,16 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "react-native-ble-plx",
+        {
+          "isBackgroundEnabled": true,
+          "modes": ["peripheral", "central"],
+          "bluetoothAlwaysPermission": "Allow Rover Dashboard to connect to the Rover via Bluetooth.",
+          "bluetoothPeripheralPermission": "Allow Rover Dashboard to connect to the Rover via Bluetooth."
+        }
+      ]
     ]
   }
 }

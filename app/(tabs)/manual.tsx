@@ -109,33 +109,33 @@ export default function ManualControlScreen() {
             <View style={styles.dpadRow}>
               <DPadButton
                 icon="chevron-up"
-                onPress={() => handleCommand('forward')}
+                onPress={() => handleCommand('FORWARD')}
                 disabled={isSending || !isConnected}
               />
             </View>
             <View style={styles.dpadRow}>
               <DPadButton
                 icon="chevron-left"
-                onPress={() => handleCommand('left')}
+                onPress={() => handleCommand('LEFT')}
                 disabled={isSending || !isConnected}
               />
               <DPadButton
                 icon="stop"
                 color={AppTheme.colors.error}
                 iconColor="#fff"
-                onPress={() => handleCommand('stop')}
+                onPress={() => handleCommand('STOP')}
                 disabled={isSending || !isConnected}
               />
               <DPadButton
                 icon="chevron-right"
-                onPress={() => handleCommand('right')}
+                onPress={() => handleCommand('RIGHT')}
                 disabled={isSending || !isConnected}
               />
             </View>
             <View style={styles.dpadRow}>
               <DPadButton
                 icon="chevron-down"
-                onPress={() => handleCommand('reverse')}
+                onPress={() => handleCommand('BACKWARD')}
                 disabled={isSending || !isConnected}
               />
             </View>
@@ -149,13 +149,36 @@ export default function ManualControlScreen() {
           </Text>
 
           <View style={styles.actionGrid}>
+            <View style={styles.row}>
+              <Button
+                mode="contained"
+                style={[styles.actionBtn, { flex: 1, marginRight: Spacing.xs, backgroundColor: AppTheme.colors.secondary }]}
+                labelStyle={[styles.actionBtnLabel, { color: '#000' }]}
+                icon="play-circle"
+                disabled={isSending || !isConnected}
+                onPress={() => handleCommand('START_MISSION')}
+              >
+                Start Mission
+              </Button>
+              <Button
+                mode="contained"
+                style={[styles.actionBtn, { flex: 1, marginLeft: Spacing.xs, backgroundColor: AppTheme.colors.surfaceVariant }]}
+                labelStyle={[styles.actionBtnLabel, { color: AppTheme.colors.onSurface }]}
+                icon="stop-circle"
+                disabled={isSending || !isConnected}
+                onPress={() => handleCommand('STOP_MISSION')}
+              >
+                Abort Mission
+              </Button>
+            </View>
+
             <Button
               mode="contained"
-              style={[styles.actionBtn, { backgroundColor: AppTheme.colors.tertiary }]}
+              style={[styles.actionBtn, { backgroundColor: AppTheme.colors.tertiary, marginTop: Spacing.md }]}
               labelStyle={styles.actionBtnLabel}
               icon="package-up"
               disabled={isSending || !isConnected}
-              onPress={() => handleCommand('unload')}
+              onPress={() => handleCommand('OPEN_TRAP')}
             >
               Open Trap Door
             </Button>
@@ -166,7 +189,7 @@ export default function ManualControlScreen() {
               labelStyle={[styles.actionBtnLabel, { color: AppTheme.colors.onSurface }]}
               icon="package-down"
               disabled={isSending || !isConnected}
-              onPress={() => handleCommand('closeTrap')}
+              onPress={() => handleCommand('CLOSE_TRAP')}
             >
               Close Trap Door
             </Button>
@@ -177,7 +200,7 @@ export default function ManualControlScreen() {
               labelStyle={[styles.actionBtnLabel, { color: AppTheme.colors.error }]}
               icon="alert-octagon"
               disabled={isSending || !isConnected}
-              onPress={() => handleCommand('emergencyStop')}
+              onPress={() => handleCommand('STOP')}
             >
               Emergency Stop
             </Button>

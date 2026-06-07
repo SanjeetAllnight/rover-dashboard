@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { sendCommand } from '../services/roverApi';
+import { useConnectionStore } from '../store/connectionStore';
 import type { RoverCommand, ApiStatus } from '../types/rover';
 
 export interface CommandState {
@@ -33,19 +33,18 @@ export function useRoverControls(): UseRoverControlsReturn {
   const execute = useCallback(async (action: RoverCommand) => {
     setCommandState({ status: 'loading', error: null, attempts: 0 });
 
-    const result = await sendCommand(action);
-
-    if (result.data?.ok) {
+    try {
+      await useConnectionStore.getState().sendCommand(action);
       setCommandState({
         status: 'success',
         error: null,
-        attempts: result.attempts,
+        attempts: 1,
       });
-    } else {
+    } catch (error: any) {
       setCommandState({
         status: 'error',
-        error: result.error ?? 'Command failed',
-        attempts: result.attempts,
+        error: error.message ?? 'Command failed',
+        attempts: 1,
       });
     }
   }, []);
@@ -58,9 +57,9 @@ export function useRoverControls(): UseRoverControlsReturn {
     commandState,
     isSending: commandState.status === 'loading',
     executeCommand: execute,
-    startRover: () => execute('start'),
-    stopRover: () => execute('stop'),
-    unloadCargo: () => execute('unload'),
+    startRover: () => execute('START_MISSION'),
+    stopRover: () => execute('STOP_MISSION'),
+    unloadCargo: () => execute('OPEN_TRAP'),
     clearCommandState,
   };
 }
