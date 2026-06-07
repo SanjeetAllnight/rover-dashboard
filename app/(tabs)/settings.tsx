@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, StyleSheet, ScrollView } from 'react-native';
 import {
   Text,
   TextInput,
@@ -7,50 +7,42 @@ import {
   Surface,
   Divider,
   SegmentedButtons,
-  Switch,
+  ActivityIndicator,
 } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSettingsStore } from '../../store/settingsStore';
+import { useSettingsStore, ConnectionMethod } from '../../store/settingsStore';
+import { useConnectionStore } from '../../store/connectionStore';
 import { AppTheme, Spacing, Radius } from '../../constants/theme';
-import { getRoverStatus } from '../../services/roverApi';
 
-const POLL_OPTIONS = [
-  { value: '500', label: '0.5 s' },
-  { value: '1000', label: '1 s' },
-  { value: '2000', label: '2 s' },
-  { value: '5000', label: '5 s' },
+const METHOD_OPTIONS = [
+  { value: 'mock', label: 'Mock Rover' },
+  { value: 'wifi', label: 'WiFi Rover' },
 ];
 
 export default function SettingsScreen() {
-  const { roverIp, pollIntervalMs, mockMode, setRoverIp, setPollInterval, setMockMode } = useSettingsStore();
+  const { savedRoverIp, selectedMethod, setSelectedMethod, setSavedRoverIp } = useSettingsStore();
+  const { status, error, connect, disconnect } = useConnectionStore();
 
   const [ipInput, setIpInput] = useState(
-    roverIp.replace(/^https?:\/\//, ''),
+    savedRoverIp.replace(/^https?:\/\//, ''),
   );
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
 
-  const handleSaveIp = async () => {
-    const trimmed = ipInput.trim();
-    if (!trimmed) {
-      Alert.alert('Invalid IP', 'Please enter a valid IP address or hostname.');
-      return;
+  const handleMethodChange = async (val: string) => {
+    const method = val as ConnectionMethod;
+    disconnect(); // Always disconnect when switching methods
+    await setSelectedMethod(method);
+    if (method === 'mock') {
+      connect(); // Auto-connect mock
     }
-    await setRoverIp(trimmed);
-    setTestResult(null);
   };
 
-  const handleTestConnection = async () => {
-    setTesting(true);
-    setTestResult(null);
-    const { data, error } = await getRoverStatus();
-    if (data) {
-      setTestResult('✅  Connected! Rover responded successfully.');
-    } else {
-      setTestResult(`❌  Failed: ${error}`);
+  const handleConnectWifi = async () => {
+    const trimmed = ipInput.trim();
+    if (trimmed) {
+      await setSavedRoverIp(trimmed);
+      connect();
     }
-    setTesting(false);
   };
 
   return (
@@ -58,108 +50,60 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <MaterialCommunityIcons
-          name="cog-outline"
+          name="network-outline"
           size={28}
           color={AppTheme.colors.primary}
         />
         <View>
           <Text style={styles.headerTitle} variant="titleLarge">
-            Settings
+            Connection Setup
           </Text>
           <Text style={styles.headerSub} variant="bodySmall">
-            Configure rover connection
+            Configure rover communication
           </Text>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Network section */}
-        <Surface style={styles.section} elevation={2}>
+        {/* Status Card */}
+        <Surface style={[styles.section, styles.statusSection]} elevation={2}>
           <Text style={styles.sectionLabel} variant="labelSmall">
-            NETWORK
+            CURRENT STATUS
           </Text>
-          <Divider style={styles.divider} />
-
-          <Text style={styles.fieldLabel} variant="bodyMedium">
-            Rover IP Address
-          </Text>
-          <Text style={styles.fieldHint} variant="bodySmall">
-            Enter the local IP or hostname of your ESP32 rover
-          </Text>
-          <TextInput
-            style={styles.input}
-            value={ipInput}
-            onChangeText={setIpInput}
-            placeholder="192.168.1.100"
-            placeholderTextColor={AppTheme.colors.onSurfaceVariant}
-            keyboardType="url"
-            autoCapitalize="none"
-            autoCorrect={false}
-            mode="outlined"
-            outlineColor={AppTheme.colors.outline}
-            activeOutlineColor={AppTheme.colors.primary}
-            textColor={AppTheme.colors.onSurface}
-            left={
-              <TextInput.Icon
-                icon={() => (
-                  <MaterialCommunityIcons
-                    name="ip-network-outline"
-                    size={20}
-                    color={AppTheme.colors.onSurfaceVariant}
-                  />
-                )}
-              />
-            }
-          />
-
-          <View style={styles.btnRow}>
-            <Button
-              mode="contained"
-              style={styles.saveBtn}
-              buttonColor={AppTheme.colors.primary}
-              textColor="#000"
-              onPress={handleSaveIp}
-            >
-              Save
-            </Button>
-            <Button
-              mode="outlined"
-              style={styles.testBtn}
-              textColor={AppTheme.colors.primary}
-              loading={testing}
-              disabled={testing}
-              onPress={handleTestConnection}
-            >
-              Test Connection
-            </Button>
-          </View>
-
-          {testResult ? (
-            <Text
-              style={[
-                styles.testResult,
-                { color: testResult.startsWith('✅') ? AppTheme.colors.secondary : AppTheme.colors.error },
-              ]}
-              variant="bodySmall"
-            >
-              {testResult}
+          <View style={styles.statusRow}>
+            {status === 'connected' && (
+              <MaterialCommunityIcons name="check-circle" size={24} color={AppTheme.colors.secondary} />
+            )}
+            {status === 'disconnected' && (
+              <MaterialCommunityIcons name="close-circle-outline" size={24} color={AppTheme.colors.onSurfaceVariant} />
+            )}
+            {status === 'error' && (
+              <MaterialCommunityIcons name="alert-circle" size={24} color={AppTheme.colors.error} />
+            )}
+            {status === 'connecting' && (
+              <ActivityIndicator size="small" color={AppTheme.colors.primary} />
+            )}
+            <Text style={[styles.statusText, { color: status === 'connected' ? AppTheme.colors.secondary : status === 'error' ? AppTheme.colors.error : AppTheme.colors.onSurface }]} variant="titleMedium">
+              {status.toUpperCase()}
             </Text>
-          ) : null}
+          </View>
+          {status === 'error' && error && (
+            <Text style={styles.errorText} variant="bodySmall">
+              {error}
+            </Text>
+          )}
         </Surface>
 
-        {/* Polling section */}
+        {/* Method Selection */}
         <Surface style={styles.section} elevation={2}>
           <Text style={styles.sectionLabel} variant="labelSmall">
-            POLLING INTERVAL
+            CONNECTION METHOD
           </Text>
           <Divider style={styles.divider} />
-          <Text style={styles.fieldHint} variant="bodySmall">
-            How often to fetch data from the rover
-          </Text>
           <SegmentedButtons
-            value={String(pollIntervalMs)}
-            onValueChange={(v) => setPollInterval(Number(v))}
-            buttons={POLL_OPTIONS}
+            value={selectedMethod}
+            onValueChange={handleMethodChange}
+            buttons={METHOD_OPTIONS}
             style={styles.segmented}
             theme={{
               colors: {
@@ -170,53 +114,108 @@ export default function SettingsScreen() {
           />
         </Surface>
 
-        {/* Simulation section */}
-        <Surface style={styles.section} elevation={2}>
-          <Text style={styles.sectionLabel} variant="labelSmall">
-            SIMULATION
-          </Text>
-          <Divider style={styles.divider} />
-          
-          <View style={styles.switchRow}>
-            <View style={styles.switchTextCol}>
-              <Text style={styles.fieldLabel} variant="bodyMedium">
-                Enable Mock Rover
-              </Text>
-              <Text style={styles.fieldHint} variant="bodySmall">
-                Simulate telemetry and disable real network requests for demonstration purposes
-              </Text>
-            </View>
-            <Switch
-              value={mockMode}
-              onValueChange={setMockMode}
-              color={AppTheme.colors.primary}
-            />
-          </View>
-        </Surface>
+        {/* WiFi Config (Only show if WiFi selected) */}
+        {selectedMethod === 'wifi' && (
+          <Surface style={styles.section} elevation={2}>
+            <Text style={styles.sectionLabel} variant="labelSmall">
+              WIFI ROVER SETTINGS
+            </Text>
+            <Divider style={styles.divider} />
 
-        {/* About section */}
-        <Surface style={styles.section} elevation={2}>
-          <Text style={styles.sectionLabel} variant="labelSmall">
-            ABOUT
-          </Text>
-          <Divider style={styles.divider} />
-          <View style={styles.aboutRow}>
-            <Text style={styles.aboutKey} variant="bodyMedium">App</Text>
-            <Text style={styles.aboutVal} variant="bodyMedium">Rover Dashboard</Text>
-          </View>
-          <View style={styles.aboutRow}>
-            <Text style={styles.aboutKey} variant="bodyMedium">Version</Text>
-            <Text style={styles.aboutVal} variant="bodyMedium">1.0.0</Text>
-          </View>
-          <View style={styles.aboutRow}>
-            <Text style={styles.aboutKey} variant="bodyMedium">Device</Text>
-            <Text style={styles.aboutVal} variant="bodyMedium">M5StickC PLUS2</Text>
-          </View>
-          <View style={styles.aboutRow}>
-            <Text style={styles.aboutKey} variant="bodyMedium">Protocol</Text>
-            <Text style={styles.aboutVal} variant="bodyMedium">HTTP REST (Local WiFi)</Text>
-          </View>
-        </Surface>
+            <Text style={styles.fieldLabel} variant="bodyMedium">
+              Rover IP Address
+            </Text>
+            <Text style={styles.fieldHint} variant="bodySmall">
+              Enter the local IP or hostname of your ESP32 rover
+            </Text>
+            <TextInput
+              style={styles.input}
+              value={ipInput}
+              onChangeText={setIpInput}
+              placeholder="192.168.1.100"
+              placeholderTextColor={AppTheme.colors.onSurfaceVariant}
+              keyboardType="url"
+              autoCapitalize="none"
+              autoCorrect={false}
+              mode="outlined"
+              outlineColor={AppTheme.colors.outline}
+              activeOutlineColor={AppTheme.colors.primary}
+              textColor={AppTheme.colors.onSurface}
+              left={
+                <TextInput.Icon
+                  icon={() => (
+                    <MaterialCommunityIcons
+                      name="ip-network-outline"
+                      size={20}
+                      color={AppTheme.colors.onSurfaceVariant}
+                    />
+                  )}
+                />
+              }
+            />
+
+            <View style={styles.btnRow}>
+              {status !== 'connected' && status !== 'connecting' ? (
+                <Button
+                  mode="contained"
+                  style={styles.connectBtn}
+                  buttonColor={AppTheme.colors.primary}
+                  textColor="#000"
+                  onPress={handleConnectWifi}
+                >
+                  Connect
+                </Button>
+              ) : (
+                <Button
+                  mode="outlined"
+                  style={styles.disconnectBtn}
+                  textColor={AppTheme.colors.error}
+                  onPress={disconnect}
+                >
+                  Disconnect
+                </Button>
+              )}
+            </View>
+          </Surface>
+        )}
+
+        {/* Mock Info (Only show if Mock selected) */}
+        {selectedMethod === 'mock' && (
+          <Surface style={styles.section} elevation={2}>
+            <Text style={styles.sectionLabel} variant="labelSmall">
+              MOCK ROVER SETTINGS
+            </Text>
+            <Divider style={styles.divider} />
+            <Text style={styles.mockInfo} variant="bodyMedium">
+              Simulation mode enabled. The app is simulating telemetry and disabling real network requests.
+            </Text>
+            <Text style={styles.mockSub} variant="bodySmall">
+              It connects automatically and loops through an entire mission lifecycle.
+            </Text>
+            {status === 'connected' && (
+              <Button
+                mode="outlined"
+                style={[styles.disconnectBtn, { marginTop: Spacing.md }]}
+                textColor={AppTheme.colors.error}
+                onPress={disconnect}
+              >
+                Disconnect Simulation
+              </Button>
+            )}
+            {status !== 'connected' && (
+              <Button
+                mode="contained"
+                style={[styles.connectBtn, { marginTop: Spacing.md }]}
+                buttonColor={AppTheme.colors.primary}
+                textColor="#000"
+                onPress={connect}
+              >
+                Start Simulation
+              </Button>
+            )}
+          </Surface>
+        )}
+
       </ScrollView>
     </SafeAreaView>
   );
@@ -254,15 +253,36 @@ const styles = StyleSheet.create({
     borderRadius: Radius.md,
     padding: Spacing.md,
   },
+  statusSection: {
+    borderLeftWidth: 4,
+    borderLeftColor: AppTheme.colors.primary,
+  },
   sectionLabel: {
     color: AppTheme.colors.onSurfaceVariant,
     letterSpacing: 1.5,
     fontSize: 10,
     marginBottom: Spacing.xs,
   },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  statusText: {
+    fontWeight: '700',
+    letterSpacing: 1,
+  },
+  errorText: {
+    color: AppTheme.colors.error,
+    marginTop: Spacing.sm,
+  },
   divider: {
     backgroundColor: AppTheme.colors.outline,
     marginBottom: Spacing.md,
+  },
+  segmented: {
+    marginTop: Spacing.xs,
   },
   fieldLabel: {
     color: AppTheme.colors.onSurface,
@@ -280,40 +300,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing.sm,
   },
-  saveBtn: {
+  connectBtn: {
     flex: 1,
     borderRadius: Radius.sm,
   },
-  testBtn: {
+  disconnectBtn: {
     flex: 1,
     borderRadius: Radius.sm,
-    borderColor: AppTheme.colors.primary,
+    borderColor: AppTheme.colors.error,
   },
-  testResult: {
-    marginTop: Spacing.md,
-    textAlign: 'center',
-  },
-  segmented: {
-    marginTop: Spacing.xs,
-  },
-  aboutRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: Spacing.xs,
-  },
-  aboutKey: {
-    color: AppTheme.colors.onSurfaceVariant,
-  },
-  aboutVal: {
+  mockInfo: {
     color: AppTheme.colors.onSurface,
+    marginBottom: Spacing.xs,
   },
-  switchRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  switchTextCol: {
-    flex: 1,
+  mockSub: {
+    color: AppTheme.colors.onSurfaceVariant,
   },
 });

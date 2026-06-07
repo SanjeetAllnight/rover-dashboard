@@ -1,6 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { getRoverStatus } from '../services/roverApi';
-import { useSettingsStore } from '../store/settingsStore';
+import { useConnectionStore } from '../store/connectionStore';
 import type { RoverStatus, ApiStatus } from '../types/rover';
 
 export interface UseRoverStatusReturn {
@@ -18,63 +16,20 @@ export interface UseRoverStatusReturn {
 }
 
 export function useRoverStatus(): UseRoverStatusReturn {
-  const pollIntervalMs = useSettingsStore((s) => s.pollIntervalMs);
+  const { status: connStatus, telemetry, error, lastUpdated, _tick } = useConnectionStore();
 
-  const [status, setStatus] = useState<RoverStatus | null>(null);
-  const [isConnected, setIsConnected] = useState(false);
-  const [apiStatus, setApiStatus] = useState<ApiStatus>('idle');
-  const [error, setError] = useState<string | null>(null);
-  const [lastAttempts, setLastAttempts] = useState(0);
-  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  /** Prevents state updates if the component unmounts mid-request */
-  const mountedRef = useRef(true);
-
-  const fetchStatus = useCallback(async () => {
-    if (!mountedRef.current) return;
-    setApiStatus('loading');
-
-    const result = await getRoverStatus();
-
-    if (!mountedRef.current) return;
-
-    setLastAttempts(result.attempts);
-
-    if (result.data) {
-      setStatus(result.data);
-      setIsConnected(true);
-      setError(null);
-      setApiStatus('success');
-      setLastUpdated(new Date());
-    } else {
-      setIsConnected(false);
-      setError(result.error);
-      setApiStatus('error');
-    }
-  }, []);
-
-  // Start / restart polling whenever the interval setting changes
-  useEffect(() => {
-    mountedRef.current = true;
-
-    fetchStatus(); // immediate first fetch
-
-    intervalRef.current = setInterval(fetchStatus, pollIntervalMs);
-
-    return () => {
-      mountedRef.current = false;
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [fetchStatus, pollIntervalMs]);
+  let apiStatus: ApiStatus = 'idle';
+  if (connStatus === 'error') apiStatus = 'error';
+  else if (connStatus === 'connecting') apiStatus = 'loading';
+  else if (connStatus === 'connected') apiStatus = 'success';
 
   return {
-    status,
-    isConnected,
+    status: telemetry,
+    isConnected: connStatus === 'connected',
     apiStatus,
     error,
-    lastAttempts,
+    lastAttempts: 1, // Simplified since retry logic is handled internally
     lastUpdated,
-    refetch: fetchStatus,
+    refetch: _tick,
   };
 }

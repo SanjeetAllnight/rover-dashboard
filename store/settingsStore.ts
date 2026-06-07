@@ -4,30 +4,32 @@ import { setBaseUrl, getBaseUrl } from '../services/roverApi';
 
 const STORAGE_KEY = '@rover_settings';
 
+export type ConnectionMethod = 'mock' | 'wifi';
+
 interface SettingsState {
-  roverIp: string;
+  savedRoverIp: string;
   pollIntervalMs: number;
-  mockMode: boolean;
-  setRoverIp: (ip: string) => Promise<void>;
+  selectedMethod: ConnectionMethod;
+  setSavedRoverIp: (ip: string) => Promise<void>;
   setPollInterval: (ms: number) => Promise<void>;
-  setMockMode: (enabled: boolean) => Promise<void>;
+  setSelectedMethod: (method: ConnectionMethod) => Promise<void>;
   loadSettings: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  roverIp: getBaseUrl(),
+  savedRoverIp: getBaseUrl(),
   pollIntervalMs: 1000,
-  mockMode: false,
+  selectedMethod: 'mock',
 
-  setRoverIp: async (ip: string) => {
+  setSavedRoverIp: async (ip: string) => {
     const cleaned = ip.startsWith('http') ? ip : `http://${ip}`;
     setBaseUrl(cleaned);
-    set({ roverIp: cleaned });
+    set({ savedRoverIp: cleaned });
     const current = await AsyncStorage.getItem(STORAGE_KEY);
     const parsed = current ? JSON.parse(current) : {};
     await AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ ...parsed, roverIp: cleaned }),
+      JSON.stringify({ ...parsed, savedRoverIp: cleaned }),
     );
   },
 
@@ -41,13 +43,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     );
   },
 
-  setMockMode: async (enabled: boolean) => {
-    set({ mockMode: enabled });
+  setSelectedMethod: async (method: ConnectionMethod) => {
+    set({ selectedMethod: method });
     const current = await AsyncStorage.getItem(STORAGE_KEY);
     const parsed = current ? JSON.parse(current) : {};
     await AsyncStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ ...parsed, mockMode: enabled }),
+      JSON.stringify({ ...parsed, selectedMethod: method }),
     );
   },
 
@@ -55,13 +57,18 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const { roverIp, pollIntervalMs, mockMode } = JSON.parse(raw);
-        if (roverIp) {
-          setBaseUrl(roverIp);
-          set({ roverIp });
+        const { savedRoverIp, pollIntervalMs, selectedMethod, roverIp, mockMode } = JSON.parse(raw);
+        
+        // Migrate from old schema if needed
+        const ipToSet = savedRoverIp || roverIp;
+        if (ipToSet) {
+          setBaseUrl(ipToSet);
+          set({ savedRoverIp: ipToSet });
         }
         if (pollIntervalMs) set({ pollIntervalMs });
-        if (mockMode !== undefined) set({ mockMode });
+        
+        const methodToSet = selectedMethod || (mockMode ? 'mock' : 'wifi');
+        set({ selectedMethod: methodToSet });
       }
     } catch {
       // ignore — use defaults

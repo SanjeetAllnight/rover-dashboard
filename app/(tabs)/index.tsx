@@ -1,8 +1,9 @@
 import React from 'react';
 import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
-import { Text, ActivityIndicator } from 'react-native-paper';
+import { Text, ActivityIndicator, Button } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useRoverStatus } from '../../hooks/useRoverStatus';
 import { ConnectionBadge } from '../../components/ConnectionBadge';
 import { BatteryGauge } from '../../components/BatteryGauge';
@@ -164,14 +165,21 @@ export default function DashboardScreen() {
               color={AppTheme.colors.onSurfaceVariant}
             />
             <Text style={styles.emptyTitle} variant="titleMedium">
-              No data yet
+              Rover not connected
             </Text>
             <Text style={styles.emptySub} variant="bodySmall">
-              {error ? `Error: ${error}` : 'Waiting for the rover to respond…'}
+              {error ? `Connection failed: ${error}` : 'Please connect to a rover to view telemetry.'}
             </Text>
-            <Text style={styles.emptyHint} variant="bodySmall">
-              Check the rover IP in Settings
-            </Text>
+            
+            <Button
+              mode="contained"
+              onPress={() => router.push('/settings')}
+              style={styles.setupBtn}
+              buttonColor={AppTheme.colors.primary}
+              textColor="#000"
+            >
+              Open Connection Setup
+            </Button>
           </View>
         )}
       </ScrollView>
@@ -241,9 +249,10 @@ const styles = StyleSheet.create({
     color: AppTheme.colors.onSurfaceVariant,
     textAlign: 'center',
     paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
   },
-  emptyHint: {
-    color: AppTheme.colors.primary,
-    textAlign: 'center',
+  setupBtn: {
+    marginTop: Spacing.md,
+    borderRadius: 8,
   },
 });

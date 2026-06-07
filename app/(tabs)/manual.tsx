@@ -3,6 +3,7 @@ import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { Text, Surface, Button, ActivityIndicator, Snackbar } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useRoverStatus } from '../../hooks/useRoverStatus';
 import { useRoverControls } from '../../hooks/useRoverControls';
 import { RoverStatusCard } from '../../components/RoverStatusCard';
@@ -74,119 +75,114 @@ export default function ManualControlScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {!isConnected && !status ? (
-          <View style={styles.emptyState}>
-            <MaterialCommunityIcons
-              name="wifi-off"
-              size={64}
-              color={AppTheme.colors.onSurfaceVariant}
-            />
-            <Text style={styles.emptyTitle} variant="titleMedium">
-              Rover Disconnected
-            </Text>
-            <Text style={styles.emptySub} variant="bodySmall">
-              Cannot send manual commands. Check connection.
-            </Text>
-          </View>
-        ) : (
-          <>
-            {/* Status & Battery */}
-            {status && (
-              <View style={styles.row}>
-                <RoverStatusCard state={status.state} />
-                <BatteryGauge
-                  percentage={status.batteryPercent}
-                  voltage={status.batteryVoltage}
-                />
-              </View>
-            )}
-
-            {/* D-PAD */}
-            <Surface style={styles.card} elevation={2}>
-              <Text style={styles.sectionTitle} variant="labelSmall">
-                DIRECTIONAL CONTROL
-              </Text>
-              
-              <View style={styles.dpadContainer}>
-                <View style={styles.dpadRow}>
-                  <DPadButton
-                    icon="chevron-up"
-                    onPress={() => handleCommand('forward')}
-                    disabled={isSending || !isConnected}
-                  />
-                </View>
-                <View style={styles.dpadRow}>
-                  <DPadButton
-                    icon="chevron-left"
-                    onPress={() => handleCommand('left')}
-                    disabled={isSending || !isConnected}
-                  />
-                  <DPadButton
-                    icon="stop"
-                    color={AppTheme.colors.error}
-                    iconColor="#fff"
-                    onPress={() => handleCommand('stop')}
-                    disabled={isSending || !isConnected}
-                  />
-                  <DPadButton
-                    icon="chevron-right"
-                    onPress={() => handleCommand('right')}
-                    disabled={isSending || !isConnected}
-                  />
-                </View>
-                <View style={styles.dpadRow}>
-                  <DPadButton
-                    icon="chevron-down"
-                    onPress={() => handleCommand('reverse')}
-                    disabled={isSending || !isConnected}
-                  />
-                </View>
-              </View>
-            </Surface>
-
-            {/* ACTION BUTTONS */}
-            <Surface style={styles.card} elevation={2}>
-              <Text style={styles.sectionTitle} variant="labelSmall">
-                ACTIONS
-              </Text>
-
-              <View style={styles.actionGrid}>
-                <Button
-                  mode="contained"
-                  style={[styles.actionBtn, { backgroundColor: AppTheme.colors.tertiary }]}
-                  labelStyle={styles.actionBtnLabel}
-                  icon="package-up"
-                  disabled={isSending || !isConnected}
-                  onPress={() => handleCommand('unload')}
-                >
-                  Open Trap Door
-                </Button>
-
-                <Button
-                  mode="contained"
-                  style={[styles.actionBtn, { backgroundColor: AppTheme.colors.surfaceVariant }]}
-                  labelStyle={[styles.actionBtnLabel, { color: AppTheme.colors.onSurface }]}
-                  icon="package-down"
-                  disabled={isSending || !isConnected}
-                  onPress={() => handleCommand('closeTrap')}
-                >
-                  Close Trap Door
-                </Button>
-
-                <Button
-                  mode="contained"
-                  style={[styles.actionBtn, { backgroundColor: AppTheme.colors.errorContainer, marginTop: Spacing.md }]}
-                  labelStyle={[styles.actionBtnLabel, { color: AppTheme.colors.error }]}
-                  icon="alert-octagon"
-                  disabled={isSending || !isConnected}
-                  onPress={() => handleCommand('emergencyStop')}
-                >
-                  Emergency Stop
-                </Button>
-              </View>
-            </Surface>
-          </>
+        {!isConnected && (
+          <Surface style={styles.warningCard} elevation={2}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={24} color={AppTheme.colors.error} />
+            <View style={styles.warningTextCol}>
+              <Text style={styles.warningTitle} variant="labelLarge">Not Connected</Text>
+              <Text style={styles.warningSub} variant="bodySmall">Connect to rover before sending commands.</Text>
+            </View>
+            <Button mode="text" textColor={AppTheme.colors.primary} onPress={() => router.push('/settings')}>
+              Setup
+            </Button>
+          </Surface>
         )}
+
+        {/* Status & Battery */}
+        {status && isConnected && (
+          <View style={styles.row}>
+            <RoverStatusCard state={status.state} />
+            <BatteryGauge
+              percentage={status.batteryPercent}
+              voltage={status.batteryVoltage}
+            />
+          </View>
+        )}
+
+        {/* D-PAD */}
+        <Surface style={styles.card} elevation={2}>
+          <Text style={styles.sectionTitle} variant="labelSmall">
+            DIRECTIONAL CONTROL
+          </Text>
+          
+          <View style={styles.dpadContainer}>
+            <View style={styles.dpadRow}>
+              <DPadButton
+                icon="chevron-up"
+                onPress={() => handleCommand('forward')}
+                disabled={isSending || !isConnected}
+              />
+            </View>
+            <View style={styles.dpadRow}>
+              <DPadButton
+                icon="chevron-left"
+                onPress={() => handleCommand('left')}
+                disabled={isSending || !isConnected}
+              />
+              <DPadButton
+                icon="stop"
+                color={AppTheme.colors.error}
+                iconColor="#fff"
+                onPress={() => handleCommand('stop')}
+                disabled={isSending || !isConnected}
+              />
+              <DPadButton
+                icon="chevron-right"
+                onPress={() => handleCommand('right')}
+                disabled={isSending || !isConnected}
+              />
+            </View>
+            <View style={styles.dpadRow}>
+              <DPadButton
+                icon="chevron-down"
+                onPress={() => handleCommand('reverse')}
+                disabled={isSending || !isConnected}
+              />
+            </View>
+          </View>
+        </Surface>
+
+        {/* ACTION BUTTONS */}
+        <Surface style={styles.card} elevation={2}>
+          <Text style={styles.sectionTitle} variant="labelSmall">
+            ACTIONS
+          </Text>
+
+          <View style={styles.actionGrid}>
+            <Button
+              mode="contained"
+              style={[styles.actionBtn, { backgroundColor: AppTheme.colors.tertiary }]}
+              labelStyle={styles.actionBtnLabel}
+              icon="package-up"
+              disabled={isSending || !isConnected}
+              onPress={() => handleCommand('unload')}
+            >
+              Open Trap Door
+            </Button>
+
+            <Button
+              mode="contained"
+              style={[styles.actionBtn, { backgroundColor: AppTheme.colors.surfaceVariant }]}
+              labelStyle={[styles.actionBtnLabel, { color: AppTheme.colors.onSurface }]}
+              icon="package-down"
+              disabled={isSending || !isConnected}
+              onPress={() => handleCommand('closeTrap')}
+            >
+              Close Trap Door
+            </Button>
+
+            <Button
+              mode="contained"
+              style={[styles.actionBtn, { backgroundColor: AppTheme.colors.errorContainer, marginTop: Spacing.md }]}
+              labelStyle={[styles.actionBtnLabel, { color: AppTheme.colors.error }]}
+              icon="alert-octagon"
+              disabled={isSending || !isConnected}
+              onPress={() => handleCommand('emergencyStop')}
+            >
+              Emergency Stop
+            </Button>
+          </View>
+        </Surface>
       </ScrollView>
 
       {/* Error snackbar */}
@@ -281,21 +277,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  emptyState: {
-    flex: 1,
+  warningCard: {
+    backgroundColor: AppTheme.colors.errorContainer,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    marginHorizontal: Spacing.xs,
+    marginVertical: Spacing.xs,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.xl * 2,
     gap: Spacing.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: AppTheme.colors.error,
   },
-  emptyTitle: {
+  warningTextCol: {
+    flex: 1,
+  },
+  warningTitle: {
+    color: AppTheme.colors.error,
+    fontWeight: '700',
+  },
+  warningSub: {
     color: AppTheme.colors.onSurface,
-    marginTop: Spacing.md,
-  },
-  emptySub: {
-    color: AppTheme.colors.onSurfaceVariant,
-    textAlign: 'center',
-    paddingHorizontal: Spacing.lg,
   },
   snackbar: {
     backgroundColor: AppTheme.colors.errorContainer,
