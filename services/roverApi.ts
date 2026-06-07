@@ -5,6 +5,8 @@ import type {
   CommandResult,
   ApiStatus,
 } from '../types/rover';
+import { useSettingsStore } from '../store/settingsStore';
+import { mockRover } from './mockRover';
 
 // ─── Base URL ─────────────────────────────────────────────────────────────────
 
@@ -134,6 +136,12 @@ function failResult<T>(
  * network / timeout failures with exponential back-off.
  */
 export async function getRoverStatus(): Promise<ApiResult<RoverStatus>> {
+  const isMock = useSettingsStore.getState().mockMode;
+  if (isMock) {
+    await sleep(200); // simulate network delay
+    return { data: mockRover.getStatus(), error: null, status: 'success', attempts: 1 };
+  }
+
   let attempts = 0;
 
   try {
@@ -162,6 +170,13 @@ export async function getRoverStatus(): Promise<ApiResult<RoverStatus>> {
 export async function sendCommand(
   command: RoverCommand,
 ): Promise<ApiResult<CommandResult>> {
+  const isMock = useSettingsStore.getState().mockMode;
+  if (isMock) {
+    await sleep(200);
+    mockRover.handleCommand(command);
+    return { data: { ok: true }, error: null, status: 'success', attempts: 1 };
+  }
+
   let attempts = 0;
 
   try {

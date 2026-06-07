@@ -23,7 +23,7 @@ const POLL_OPTIONS = [
 ];
 
 export default function SettingsScreen() {
-  const { roverIp, pollIntervalMs, setRoverIp, setPollInterval } = useSettingsStore();
+  const { roverIp, pollIntervalMs, mockMode, setRoverIp, setPollInterval, setMockMode } = useSettingsStore();
 
   const [ipInput, setIpInput] = useState(
     roverIp.replace(/^https?:\/\//, ''),
@@ -170,6 +170,30 @@ export default function SettingsScreen() {
           />
         </Surface>
 
+        {/* Simulation section */}
+        <Surface style={styles.section} elevation={2}>
+          <Text style={styles.sectionLabel} variant="labelSmall">
+            SIMULATION
+          </Text>
+          <Divider style={styles.divider} />
+          
+          <View style={styles.switchRow}>
+            <View style={styles.switchTextCol}>
+              <Text style={styles.fieldLabel} variant="bodyMedium">
+                Enable Mock Rover
+              </Text>
+              <Text style={styles.fieldHint} variant="bodySmall">
+                Simulate telemetry and disable real network requests for demonstration purposes
+              </Text>
+            </View>
+            <Switch
+              value={mockMode}
+              onValueChange={setMockMode}
+              color={AppTheme.colors.primary}
+            />
+          </View>
+        </Surface>
+
         {/* About section */}
         <Surface style={styles.section} elevation={2}>
           <Text style={styles.sectionLabel} variant="labelSmall">
@@ -282,5 +306,14 @@ const styles = StyleSheet.create({
   },
   aboutVal: {
     color: AppTheme.colors.onSurface,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  switchTextCol: {
+    flex: 1,
   },
 });

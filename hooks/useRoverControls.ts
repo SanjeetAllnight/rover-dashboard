@@ -19,6 +19,7 @@ export interface UseRoverControlsReturn {
   commandState: CommandState;
   /** True while any command is in-flight */
   isSending: boolean;
+  executeCommand: (action: RoverCommand) => Promise<void>;
   startRover: () => Promise<void>;
   stopRover: () => Promise<void>;
   unloadCargo: () => Promise<void>;
@@ -56,6 +57,7 @@ export function useRoverControls(): UseRoverControlsReturn {
   return {
     commandState,
     isSending: commandState.status === 'loading',
+    executeCommand: execute,
     startRover: () => execute('start'),
     stopRover: () => execute('stop'),
     unloadCargo: () => execute('unload'),

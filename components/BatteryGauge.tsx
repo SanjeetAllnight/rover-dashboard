@@ -31,11 +31,20 @@ export function BatteryGauge({ percentage, voltage }: BatteryGaugeProps) {
 
   return (
     <Surface style={styles.card} elevation={2}>
-      <View style={styles.header}>
-        <Text style={styles.title} variant="labelSmall">
-          BATTERY
+      <Text style={styles.sectionTitle} variant="labelSmall">
+        BATTERY
+      </Text>
+
+      <View style={styles.headerRow}>
+        <View style={styles.iconRow}>
+          <MaterialCommunityIcons name={icon as any} size={24} color={color} />
+          <Text style={[styles.pct, { color }]} variant="headlineMedium">
+            {percentage}%
+          </Text>
+        </View>
+        <Text style={styles.voltage} variant="bodyMedium">
+          {voltage.toFixed(2)}V
         </Text>
-        <MaterialCommunityIcons name={icon as any} size={22} color={color} />
       </View>
 
       {/* Fill bar */}
@@ -49,15 +58,6 @@ export function BatteryGauge({ percentage, voltage }: BatteryGaugeProps) {
             },
           ]}
         />
-      </View>
-
-      <View style={styles.row}>
-        <Text style={[styles.pct, { color }]} variant="headlineMedium">
-          {percentage}%
-        </Text>
-        <Text style={styles.voltage} variant="bodyMedium">
-          {voltage.toFixed(2)} V
-        </Text>
       </View>
     </Surface>
   );
@@ -73,37 +73,38 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: AppTheme.colors.secondary,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  title: {
+  sectionTitle: {
     color: AppTheme.colors.onSurfaceVariant,
     letterSpacing: 1,
     fontSize: 10,
-  },
-  barBg: {
-    height: 6,
-    backgroundColor: AppTheme.colors.surfaceVariant,
-    borderRadius: 3,
-    overflow: 'hidden',
     marginBottom: Spacing.sm,
   },
-  barFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  row: {
+  headerRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'baseline',
-    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  iconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   pct: {
-    fontWeight: '700',
+    fontWeight: '800',
+    fontSize: 24,
   },
   voltage: {
     color: AppTheme.colors.onSurfaceVariant,
+  },
+  barBg: {
+    height: 8,
+    backgroundColor: AppTheme.colors.surfaceVariant,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 4,
   },
 });

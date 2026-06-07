@@ -7,14 +7,17 @@ const STORAGE_KEY = '@rover_settings';
 interface SettingsState {
   roverIp: string;
   pollIntervalMs: number;
+  mockMode: boolean;
   setRoverIp: (ip: string) => Promise<void>;
   setPollInterval: (ms: number) => Promise<void>;
+  setMockMode: (enabled: boolean) => Promise<void>;
   loadSettings: () => Promise<void>;
 }
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   roverIp: getBaseUrl(),
   pollIntervalMs: 1000,
+  mockMode: false,
 
   setRoverIp: async (ip: string) => {
     const cleaned = ip.startsWith('http') ? ip : `http://${ip}`;
@@ -38,16 +41,27 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     );
   },
 
+  setMockMode: async (enabled: boolean) => {
+    set({ mockMode: enabled });
+    const current = await AsyncStorage.getItem(STORAGE_KEY);
+    const parsed = current ? JSON.parse(current) : {};
+    await AsyncStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...parsed, mockMode: enabled }),
+    );
+  },
+
   loadSettings: async () => {
     try {
       const raw = await AsyncStorage.getItem(STORAGE_KEY);
       if (raw) {
-        const { roverIp, pollIntervalMs } = JSON.parse(raw);
+        const { roverIp, pollIntervalMs, mockMode } = JSON.parse(raw);
         if (roverIp) {
           setBaseUrl(roverIp);
           set({ roverIp });
         }
         if (pollIntervalMs) set({ pollIntervalMs });
+        if (mockMode !== undefined) set({ mockMode });
       }
     } catch {
       // ignore — use defaults

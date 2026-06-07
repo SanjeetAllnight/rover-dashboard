@@ -7,8 +7,11 @@ import { useRoverStatus } from '../../hooks/useRoverStatus';
 import { ConnectionBadge } from '../../components/ConnectionBadge';
 import { BatteryGauge } from '../../components/BatteryGauge';
 import { CargoCard } from '../../components/CargoCard';
-import { TripCard } from '../../components/TripCard';
 import { StatusCard } from '../../components/StatusCard';
+import { RoverStatusCard } from '../../components/RoverStatusCard';
+import { MissionCard } from '../../components/MissionCard';
+import { MissionProgressCard } from '../../components/MissionProgressCard';
+import { EventLogCard } from '../../components/EventLogCard';
 import { ControlPanel } from '../../components/ControlPanel';
 import { AppTheme, Spacing } from '../../constants/theme';
 
@@ -106,18 +109,7 @@ export default function DashboardScreen() {
           <>
             {/* State + Battery */}
             <View style={styles.row}>
-              <StatusCard
-                title="Rover State"
-                value={status.state}
-                accentColor={roverStateColor(status.state)}
-                icon={
-                  <MaterialCommunityIcons
-                    name="state-machine"
-                    size={18}
-                    color={roverStateColor(status.state)}
-                  />
-                }
-              />
+              <RoverStatusCard state={status.state} />
               <BatteryGauge
                 percentage={status.batteryPercent}
                 voltage={status.batteryVoltage}
@@ -148,12 +140,18 @@ export default function DashboardScreen() {
               />
             </View>
 
-            {/* Trip info */}
-            <TripCard
+            {/* Mission info */}
+            <MissionCard
+              currentTripNumber={status.currentTripNumber || 0}
               tripsCompleted={status.tripsCompleted}
-              currentTripStatus={status.currentTripStatus}
               lastTripDuration={status.lastTripDuration}
             />
+
+            {/* Mission Progress */}
+            <MissionProgressCard state={status.state} />
+
+            {/* Event Log */}
+            <EventLogCard events={status.eventLog || []} />
 
             {/* Controls */}
             <ControlPanel />

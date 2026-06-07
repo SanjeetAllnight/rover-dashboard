@@ -2,15 +2,36 @@
 
 export type RoverState =
   | 'IDLE'
-  | 'RUNNING'
-  | 'PAUSED'
+  | 'DELIVERING'
   | 'UNLOADING'
+  | 'RETURNING'
+  | 'STOPPED'
   | 'ERROR'
-  | 'STOPPED';
+  // legacy states kept for backwards compat with older firmware
+  | 'RUNNING'
+  | 'PAUSED';
 
 // ─── Rover command ───────────────────────────────────────────────────────────
 
-export type RoverCommand = 'start' | 'stop' | 'unload';
+export type RoverCommand = 'start' | 'stop' | 'unload' | 'forward' | 'reverse' | 'left' | 'right' | 'closeTrap' | 'emergencyStop';
+
+// ─── Event log entry ─────────────────────────────────────────────────────────
+
+export type RoverEventType =
+  | 'MISSION_STARTED'
+  | 'DESTINATION_REACHED'
+  | 'CARGO_UNLOADED'
+  | 'RETURNED_HOME'
+  | 'MISSION_ABORTED'
+  | 'ERROR_DETECTED';
+
+export interface RoverEvent {
+  type: RoverEventType;
+  /** Unix timestamp in seconds */
+  timestamp: number;
+  /** Optional human-readable message */
+  message?: string;
+}
 
 // ─── /status response ────────────────────────────────────────────────────────
 
@@ -23,14 +44,21 @@ export interface RoverStatus {
   batteryVoltage: number;
   /** Whether cargo is currently loaded */
   cargoLoaded: boolean;
+  /** Current trip number (trip in progress, 0 if idle) */
+  currentTripNumber: number;
   /** Total number of completed trips */
   tripsCompleted: number;
-  /** Human-readable status of the active trip */
+  /** Human-readable status of the active trip (legacy field from ESP32) */
   currentTripStatus: string;
   /** Duration of the last completed trip in seconds */
   lastTripDuration: number;
   /** Current slope angle in degrees (from IMU) */
   slopeAngle: number;
+  /**
+   * Recent event log entries (newest first).
+   * Optional — older firmware may not send this field.
+   */
+  eventLog?: RoverEvent[];
 }
 
 // ─── Generic API result ──────────────────────────────────────────────────────

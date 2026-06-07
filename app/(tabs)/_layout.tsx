@@ -34,6 +34,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="manual"
+        options={{
+          title: 'Manual',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialCommunityIcons name="gamepad-variant-outline" color={color} size={size} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
